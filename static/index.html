@@ -6,7 +6,7 @@
     <meta content='width=device-width; height=device-height; initial-scale=1.0; maximum-scale=1.0; user-scalable=0;' name='viewport' />
     <meta name="viewport" content="width=device-width" />
     <meta name="license" content="
-        Copyright 2013 Google, Abram Hindle
+        Copyright 2013 Google, Abram Hindle, Ashley Fegan
         
         Licensed under the Apache License, Version 2.0 (the "License");
         you may not use this file except in compliance with the License.
@@ -27,6 +27,8 @@
     <canvas id="c" width="100%" height="100%" style="-webkit-tap-highlight-color: transparent;"></canvas> 
 
     <script>
+var backgroundImage = new Image(); 
+backgroundImage.src = 'board.png';
       // Fix me
 var canvas = document.getElementById('c');
 var host = window.location.host;
@@ -47,15 +49,24 @@ world = {};
 //XXX: TODO Make this prettier!
 function drawCircle(context,entity) {
     with(context) {
-        beginPath();                
+        beginPath();              
         lineWidth = 3;
         var x = entity["x"];
         var y = entity["y"];
-        //moveTo(x,y);
-        fillStyle = entity["colour"];
+        moveTo(x,y);
+        //fillStyle = entity["colour"];
+        //strokeStyle = fillStyle;
+        //arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
+      //  stroke(); 
+	var grd = createLinearGradient(0,0,1000,0);
+	grd.addColorStop(0,"red");
+	grd.addColorStop(1,"white");
+
+// Fill with gradient
+	arc(x, y,(entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);
+	fillStyle = entity["color"]=grd;
         strokeStyle = fillStyle;
-        arc(x, y, (entity["radius"])?entity["radius"]:50, 0, 2.0 * Math.PI, false);  
-        stroke();                                
+	stroke();	                               
     }
 }
 
@@ -72,7 +83,9 @@ function prepEntity(entity) {
 function clearFrame() {
     with(context) {
 	moveTo(0,0);
-	fillStyle = "#000";
+	var img = document.getElementById("board")
+        var pattern = context.createPattern(backgroundImage, 'repeat');
+	fillStyle = pattern;
 	fillRect(0,0,W,H);
     }
 
@@ -124,7 +137,10 @@ function getPosition(e) {
 function addEntity(entity, data) {
     world[entity] = data;
     drawNextFrame(); // (but should we?)
-    //XXX: Send a XHTML Request that updates the entity you just modified!
+    var blah={}
+    blah[entity]=data;
+    socket.send(JSON.stringify(blah));
+    
 }
 var counter = 0;
 function addEntityWithoutName(data) {
@@ -230,30 +246,27 @@ mouse = (function() {
 
 // Add the application specific mouse listeners!
 //XXX: TODO Make these prettier!
-mouse.mousedowners.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'blue'});
-});
-
-mouse.mouseuppers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'red'});
-});
-
 mouse.mousedraggers.push(function(x,y,clicked,e) {
-    addEntityWithoutName({'x':x,'y':y,'colour':'green',
-                          'radius':10});
+    addEntityWithoutName({'x':x,'y':y,'colour':'black',
+                          'radius':5});
 });
 
 
 function update() {
-    drawFrame();
+   // sendJSONXMLHTTPRequest("/world",{} ,function(response){
+       // world=response;
+	drawNextFrame();
+        drawFrame();
+	//});
 }
 
 
 function wsSetup() {
+
     var url = "ws://"+host+"/subscribe";   
     socket = new WebSocket(url);
     socket.onopen = function() {
-        //XXX: TODO What are you going to do here?
+	alert("Welcome");
     };
     socket.onerror = function(msg) {
         debug("WebSocket Error:" + msg.data);
@@ -261,7 +274,10 @@ function wsSetup() {
     socket.onmessage = function(msg) {  
         try {
             debug("WebSocket Recv:" + msg.data);
-            //XXX: TODO What are you going to do here?            
+            var message = JSON.parse(msg.data);
+	    for (blah in message){
+	    	world[blah]=message[blah];
+		drawNextFrame(); }          
         } catch (e) {
             alert("socket on message: " + e);
         }
